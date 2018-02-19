@@ -79,6 +79,15 @@ class TrainingProcessor(object):
                             type=int,
                             default=64,
                             help="Batch size, as a power of 2 (64, 128, 256, etc)")
+        parser.add_argument('-ag', '--allow-growth',
+                            action="store_true",
+                            dest="allow_growth",
+                            default=False,
+                            help="Sets allow_growth option of Tensorflow to spare memory on some configs")
+        parser.add_argument('-ep', '--epochs',
+                            type=int,
+                            default=1000000,
+                            help="Length of training in epochs.")
         parser = self.add_optional_arguments(parser)
         parser.set_defaults(func=self.process_arguments)
 
@@ -118,6 +127,9 @@ class TrainingProcessor(object):
         thr.join() # waits until thread finishes
 
     def processThread(self):
+        if self.arguments.allow_growth:
+            self.set_tf_allow_growth()
+        
         print('Loading data, this may take a while...')
         # this is so that you can enter case insensitive values for trainer
         trainer = self.arguments.trainer
@@ -133,7 +145,7 @@ class TrainingProcessor(object):
         try:
             print('Starting. Press "Enter" to stop training and save model')
 
-            for epoch in range(0, 1000000):
+            for epoch in range(0, self.arguments.epochs):
 
                 save_iteration = epoch % self.arguments.save_interval == 0
 
@@ -160,6 +172,14 @@ class TrainingProcessor(object):
             print(e)
             exit(1)
     
+    def set_tf_allow_growth(self):
+        import tensorflow as tf
+        from keras.backend.tensorflow_backend import set_session
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        config.gpu_options.visible_device_list="0"
+        set_session(tf.Session(config=config))
+
     preview_buffer = {}
 
     def show(self, image, name=''):
